@@ -4,7 +4,7 @@ const { isValidAddress, isValidAmount, sanitizeAddress, sanitizeAmount } = requi
 
 const addTransaction = (req, res, next) => {
   try {
-    const { fromAddress, toAddress, amount } = req.body;
+    const { fromAddress, toAddress, amount, signature, timestamp } = req.body;
 
     if (!isValidAddress(fromAddress) || !isValidAddress(toAddress)) {
       return sendError(res, 'Invalid wallet address format', 400);
@@ -14,10 +14,21 @@ const addTransaction = (req, res, next) => {
       return sendError(res, 'Amount must be a positive number', 400);
     }
 
+    if (typeof signature !== 'string' || !signature.trim()) {
+      return sendError(res, 'Transaction signature is required', 400);
+    }
+
+    const parsedTimestamp = Number(timestamp);
+    if (!Number.isFinite(parsedTimestamp) || parsedTimestamp <= 0) {
+      return sendError(res, 'Transaction timestamp is invalid', 400);
+    }
+
     const transaction = new Transaction(
       sanitizeAddress(fromAddress),
       sanitizeAddress(toAddress),
-      sanitizeAmount(amount)
+      sanitizeAmount(amount),
+      parsedTimestamp,
+      signature.trim()
     );
 
     blockchain.addTransaction(transaction);

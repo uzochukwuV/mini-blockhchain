@@ -25,11 +25,18 @@
   font-size: 1rem;
   transition: border-color 0.3s;
   font-family: 'TechMono', monospace;
+  background: white;
 }
 
 .form-group input:focus {
   outline: none;
   border-color: #667eea;
+}
+
+.form-group input:disabled {
+  background: #f8fafc;
+  color: #64748b;
+  cursor: not-allowed;
 }
 
 .form-message {

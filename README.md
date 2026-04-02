@@ -129,6 +129,34 @@ Copy `.env.example` to `.env` and adjust as needed.
 
 ---
 
+## Changes
+
+### Cryptographic Wallet System
+
+- Added `POST /api/wallets` to generate `secp256k1` wallet pairs on the backend using Node.js `crypto`.
+- Replaced the demo transaction-validation bypass with real transaction signing and verification.
+- Updated transaction submission so the frontend signs payloads locally before sending them to the API.
+- Added a `Wallet` UI that generates a wallet, keeps the private key in component state, and shows the current balance for the generated public key.
+
+### Blockchain Persistence
+
+- Added `services/persistence.service.js` to save, load, and clear blockchain state in `blockchain.json` at the project root.
+- Updated model bootstrap to restore persisted state on startup before considering demo seeding.
+- Added automatic persistence after successful transaction creation and mining.
+- Added safe fallbacks for missing files, invalid JSON, and invalid restored chains.
+
+### New Env Vars
+
+- No new environment variables were introduced for these changes.
+
+### Known Limitations / Trade-offs
+
+- The generated wallet private key is intentionally kept only in React component state, so a browser refresh or tab close discards it.
+- Persisted state restores the blockchain and pending transactions, but not any client-side wallet keys.
+- The persistence layer uses synchronous file I/O for simplicity and predictability in this small project.
+
+---
+
 ## API Reference
 
 All API responses share a common envelope:
@@ -155,8 +183,20 @@ All API responses share a common envelope:
 
 **POST `/api/transactions` body:**
 ```json
-{ "fromAddress": "address1", "toAddress": "address2", "amount": 100 }
+{
+  "fromAddress": "04...",
+  "toAddress": "04...",
+  "amount": 100,
+  "timestamp": 1712050000000,
+  "signature": "3045..."
+}
 ```
+
+### Wallets
+
+| Method | Path | Description |
+|---|---|---|
+| POST | `/api/wallets` | Generate a new `{ publicKey, privateKey }` pair |
 
 ### Mining
 
@@ -231,8 +271,8 @@ PORT=3003 npm run dev
 - Check `REACT_APP_API_URL` in your `.env`
 - Confirm `src/setupProxy.js` target matches `PORT`
 
-**Chain resets on every restart**
-- This is expected until you implement Task 2 (Data Persistence) from INSTRUCTIONS.md
+**Need to reset blockchain state**
+- Delete `blockchain.json` or call the persistence service `clear()` helper in a test/script
 
 ---
 

@@ -13,14 +13,17 @@ export const fetchPendingTransactions = () =>
 export const fetchAllTransactions = () =>
   client.get(ENDPOINTS.TRANSACTIONS_ALL);
 
-export const addTransaction = (fromAddress, toAddress, amount) =>
-  client.post(ENDPOINTS.TRANSACTIONS, { fromAddress, toAddress, amount });
+export const addTransaction = (transaction) =>
+  client.post(ENDPOINTS.TRANSACTIONS, transaction);
 
 export const mineBlock = (miningRewardAddress = 'miner1') =>
   client.post(ENDPOINTS.MINE, { miningRewardAddress });
 
 export const fetchBalance = (address) =>
   client.get(ENDPOINTS.balance(address));
+
+export const createWallet = () =>
+  client.post(ENDPOINTS.WALLETS, {});
 
 export const fetchDashboard = () =>
   Promise.all([fetchChain(), fetchStats()]).then(([chainData, statsData]) => ({

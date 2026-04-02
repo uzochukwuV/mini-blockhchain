@@ -2,9 +2,8 @@ import React, { useState } from 'react';
 import './TransactionForm.css';
 import { addTransaction } from '../api/blockchain.api';
 
-const TransactionForm = ({ onTransactionAdded }) => {
+const TransactionForm = ({ walletAddress, signTransaction, onTransactionAdded }) => {
   const [formData, setFormData] = useState({
-    fromAddress: '',
     toAddress: '',
     amount: '',
   });
@@ -18,13 +17,32 @@ const TransactionForm = ({ onTransactionAdded }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    if (!walletAddress || !signTransaction) {
+      setMessage('Generate a wallet before creating a signed transaction.');
+      return;
+    }
+
     setLoading(true);
     setMessage('');
 
     try {
-      await addTransaction(formData.fromAddress, formData.toAddress, formData.amount);
+      const transaction = {
+        fromAddress: walletAddress,
+        toAddress: formData.toAddress.trim(),
+        amount: Number(formData.amount),
+        timestamp: Date.now(),
+      };
+
+      const signature = await signTransaction(transaction);
+
+      await addTransaction({
+        ...transaction,
+        signature,
+      });
+
       setMessage('Transaction added successfully!');
-      setFormData({ fromAddress: '', toAddress: '', amount: '' });
+      setFormData({ toAddress: '', amount: '' });
       onTransactionAdded();
     } catch (err) {
       setMessage(err.message || 'Failed to add transaction');
@@ -44,10 +62,9 @@ const TransactionForm = ({ onTransactionAdded }) => {
             type="text"
             id="fromAddress"
             name="fromAddress"
-            value={formData.fromAddress}
-            onChange={handleChange}
-            placeholder="e.g., address1"
-            required
+            value={walletAddress}
+            placeholder="Generate a wallet first"
+            disabled
           />
         </div>
         
@@ -59,7 +76,7 @@ const TransactionForm = ({ onTransactionAdded }) => {
             name="toAddress"
             value={formData.toAddress}
             onChange={handleChange}
-            placeholder="e.g., address2"
+            placeholder="Recipient public key"
             required
           />
         </div>
@@ -85,8 +102,12 @@ const TransactionForm = ({ onTransactionAdded }) => {
           </div>
         )}
         
-        <button type="submit" className="submit-button" disabled={loading}>
-          {loading ? 'Adding...' : 'Add Transaction'}
+        <button
+          type="submit"
+          className="submit-button"
+          disabled={loading || !walletAddress || !signTransaction}
+        >
+          {loading ? 'Signing...' : 'Sign & Add Transaction'}
         </button>
       </form>
     </div>

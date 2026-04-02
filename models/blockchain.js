@@ -1,4 +1,9 @@
 const crypto = require('crypto');
+const {
+  createPrivateKeyObject,
+  createPublicKeyObject,
+  derivePublicKey,
+} = require('../utils/wallet');
 
 class Block {
   constructor(timestamp, transactions, previousHash = '') {
@@ -41,51 +46,54 @@ class Block {
 }
 
 class Transaction {
-  constructor(fromAddress, toAddress, amount) {
+  constructor(fromAddress, toAddress, amount, timestamp = Date.now(), signature = '') {
     this.fromAddress = fromAddress;
     this.toAddress = toAddress;
     this.amount = amount;
-    this.timestamp = Date.now();
-    this.signature = '';
+    this.timestamp = timestamp;
+    this.signature = signature;
+  }
+
+  serialize() {
+    return `${this.fromAddress}${this.toAddress}${this.amount}${this.timestamp}`;
   }
 
   calculateHash() {
-    return crypto
-      .createHash('sha256')
-      .update(this.fromAddress + this.toAddress + this.amount + this.timestamp)
-      .digest('hex');
+    return crypto.createHash('sha256').update(this.serialize()).digest('hex');
   }
 
   signTransaction(signingKey) {
-    if (signingKey.getPublic('hex') !== this.fromAddress) {
+    const privateKeyHex =
+      typeof signingKey === 'string' ? signingKey : signingKey?.privateKey || '';
+    const derivedPublicKey = derivePublicKey(privateKeyHex);
+
+    if (derivedPublicKey !== this.fromAddress) {
       throw new Error('You cannot sign transactions for other wallets!');
     }
 
-    const hashTx = this.calculateHash();
-    const sig = signingKey.sign(hashTx, 'base64');
-    this.signature = sig.toDER('hex');
+    const privateKey = createPrivateKeyObject(privateKeyHex);
+    const signer = crypto.createSign('SHA256');
+
+    signer.update(this.serialize());
+    signer.end();
+    this.signature = signer.sign(privateKey, 'hex');
   }
 
   isValid() {
     if (this.fromAddress === null) return true;
 
     if (!this.signature || this.signature.length === 0) {
-      return true;
+      return false;
     }
 
     try {
-      const publicKey = crypto.createPublicKey({
-        key: Buffer.from(this.fromAddress, 'hex'),
-        format: 'der',
-        type: 'spki',
-      });
+      const publicKey = createPublicKeyObject(this.fromAddress);
+      const verifier = crypto.createVerify('SHA256');
 
-      return crypto.verify(
-        null,
-        Buffer.from(this.calculateHash()),
-        publicKey,
-        Buffer.from(this.signature, 'hex')
-      );
+      verifier.update(this.serialize());
+      verifier.end();
+
+      return verifier.verify(publicKey, this.signature, 'hex');
     } catch {
       return false;
     }
@@ -126,6 +134,10 @@ class Blockchain {
   addTransaction(transaction) {
     if (!transaction.fromAddress || !transaction.toAddress) {
       throw new Error('Transaction must include from and to address');
+    }
+
+    if (!transaction.signature) {
+      throw new Error('Transaction must be signed before it can be added');
     }
 
     if (!transaction.isValid()) {
